@@ -149,7 +149,7 @@ async function handleLogin(e) {
     const result = await loginWithEmail(email, password);
 
     if (!result.success) {
-        errorDiv.textContent = result.error;
+        errorDiv.textContent = 'Incorrect details or not an admin user.';
         errorDiv.classList.remove('hidden');
         btn.disabled = false;
         btn.textContent = 'Sign In';

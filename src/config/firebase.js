@@ -25,10 +25,20 @@ const auth = getAuth(app);
 export async function loginWithEmail(email, password) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return { success: true, user: userCredential.user };
+        const user = userCredential.user;
+        // Get ID token result to check custom claims
+        const idTokenResult = await user.getIdTokenResult();
+        const claims = idTokenResult.claims || {};
+        if (claims.role === 'admin') {
+            return { success: true, user };
+        } else {
+            // Not admin, sign out immediately
+            await signOut(auth);
+            return { success: false, error: 'Incorrect details or not an admin user.' };
+        }
     } catch (error) {
         console.error('Login error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: 'Incorrect details or not an admin user.' };
     }
 }
 
