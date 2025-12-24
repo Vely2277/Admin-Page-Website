@@ -81,8 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const profileResponse = await api.getUserProfile(user.uid);
                 console.log('Profile response:', profileResponse);
                 
-                // Backend returns: { success: true, data: { ...profile, role: "admin" } }
-                const userRole = profileResponse?.data?.role || null;
+                // Try different possible response structures
+                const userRole = profileResponse?.data?.role || 
+                               profileResponse?.user?.role || 
+                               profileResponse?.profile?.role || 
+                               profileResponse?.role || 
+                               null;
                 console.log('User role:', userRole);
                 
                 if (userRole === 'admin') {
@@ -100,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // Not admin, sign out and show login page
                     console.log('❌ Access denied - User role:', userRole);
+                    console.log('Full response:', JSON.stringify(profileResponse, null, 2));
                     await logout();
                     state.user = null;
                     hideLoading();
@@ -108,12 +113,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error checking admin role:', error);
+                console.error('Error details:', error.message, error.stack);
                 // If can't verify role, sign out
                 await logout();
                 state.user = null;
                 hideLoading();
                 renderLoginPage();
-                toast.error('Unable to verify admin access.');
+                toast.error('Unable to verify admin access. Please check console for details.');
             }
         } else {
             state.user = null;
