@@ -25,20 +25,10 @@ const auth = getAuth(app);
 export async function loginWithEmail(email, password) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        // Get ID token result to check custom claims
-        const idTokenResult = await user.getIdTokenResult();
-        const claims = idTokenResult.claims || {};
-        if (claims.role === 'admin') {
-            return { success: true, user };
-        } else {
-            // Not admin, sign out immediately
-            await signOut(auth);
-            return { success: false, error: 'Incorrect details or not an admin user.' };
-        }
+        return { success: true, user: userCredential.user };
     } catch (error) {
         console.error('Login error:', error);
-        return { success: false, error: 'Incorrect details or not an admin user.' };
+        return { success: false, error: 'Incorrect email or password.' };
     }
 }
 
@@ -75,23 +65,6 @@ export async function getIdToken() {
  */
 export function getCurrentUser() {
     return auth.currentUser;
-}
-
-/**
- * Check if current user has admin role
- */
-export async function isAdmin() {
-    const user = auth.currentUser;
-    if (!user) return false;
-
-    try {
-        const idTokenResult = await user.getIdTokenResult();
-        const claims = idTokenResult.claims || {};
-        return claims.role === 'admin';
-    } catch (error) {
-        console.error('Error checking admin role:', error);
-        return false;
-    }
 }
 
 /**

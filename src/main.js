@@ -2,7 +2,7 @@
  * Location Tracking Admin Panel - Main Entry Point
  */
 
-import { onAuthChange, loginWithEmail, logout, getCurrentUser, isAdmin } from './config/firebase.js';
+import { onAuthChange, loginWithEmail, logout, getCurrentUser } from './config/firebase.js';
 import * as api from './services/api.js';
 import toast from './services/toast.js';
 import {
@@ -75,26 +75,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listen for auth state changes
     onAuthChange(async (user) => {
         if (user) {
-            // Check if user is admin
-            const adminCheck = await isAdmin();
-            if (adminCheck) {
-                state.user = user;
-                // Load defaults
-                try {
-                    const defaultsResponse = await api.getDefaultSettings();
-                    state.defaults = defaultsResponse.defaults;
-                } catch (e) {
-                    console.error('Failed to load defaults:', e);
+            // Check if user has admin role by fetching their profile from backend
+            try {
+                const profileResponse = await api.getUserProfile(user.uid);
+                const userRole = profileResponse?.user?.role || profileResponse?.profile?.role || null;
+                
+                if (userRole === 'admin') {
+                    state.user = user;
+                    // Load defaults
+                    try {
+                        const defaultsResponse = await api.getDefaultSettings();
+                        state.defaults = defaultsResponse.defaults;
+                    } catch (e) {
+                        console.error('Failed to load defaults:', e);
+                    }
+                    hideLoading();
+                    renderApp();
+                } else {
+                    // Not admin, sign out and show login page
+                    await logout();
+                    state.user = null;
+                    hideLoading();
+                    renderLoginPage();
+                    toast.error('Access denied. Admin privileges required.');
                 }
-                hideLoading();
-                renderApp();
-            } else {
-                // Not admin, sign out and show login page
+            } catch (error) {
+                console.error('Error checking admin role:', error);
+                // If can't verify role, sign out
                 await logout();
                 state.user = null;
                 hideLoading();
                 renderLoginPage();
-                toast.error('Access denied. Admin privileges required.');
+                toast.error('Unable to verify admin access.');
             }
         } else {
             state.user = null;
