@@ -77,10 +77,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             // Check if user has admin role by fetching their profile from backend
             try {
+                console.log('Checking admin role for user:', user.uid);
                 const profileResponse = await api.getUserProfile(user.uid);
-                const userRole = profileResponse?.user?.role || profileResponse?.profile?.role || null;
+                console.log('Profile response:', profileResponse);
+                
+                // Backend returns: { success: true, data: { ...profile, role: "admin" } }
+                const userRole = profileResponse?.data?.role || null;
+                console.log('User role:', userRole);
                 
                 if (userRole === 'admin') {
+                    console.log('✅ Admin access granted');
                     state.user = user;
                     // Load defaults
                     try {
@@ -93,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderApp();
                 } else {
                     // Not admin, sign out and show login page
+                    console.log('❌ Access denied - User role:', userRole);
                     await logout();
                     state.user = null;
                     hideLoading();
