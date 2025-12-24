@@ -78,6 +78,23 @@ export function getCurrentUser() {
 }
 
 /**
+ * Check if current user has admin role
+ */
+export async function isAdmin() {
+    const user = auth.currentUser;
+    if (!user) return false;
+
+    try {
+        const idTokenResult = await user.getIdTokenResult();
+        const claims = idTokenResult.claims || {};
+        return claims.role === 'admin';
+    } catch (error) {
+        console.error('Error checking admin role:', error);
+        return false;
+    }
+}
+
+/**
  * Listen for auth state changes
  */
 export function onAuthChange(callback) {

@@ -2,7 +2,7 @@
  * Location Tracking Admin Panel - Main Entry Point
  */
 
-import { onAuthChange, loginWithEmail, logout, getCurrentUser } from './config/firebase.js';
+import { onAuthChange, loginWithEmail, logout, getCurrentUser, isAdmin } from './config/firebase.js';
 import * as api from './services/api.js';
 import toast from './services/toast.js';
 import {
@@ -74,19 +74,31 @@ const icons = {
 document.addEventListener('DOMContentLoaded', () => {
     // Listen for auth state changes
     onAuthChange(async (user) => {
-        state.user = user;
-        hideLoading();
-
         if (user) {
-            // Load defaults
-            try {
-                const defaultsResponse = await api.getDefaultSettings();
-                state.defaults = defaultsResponse.defaults;
-            } catch (e) {
-                console.error('Failed to load defaults:', e);
+            // Check if user is admin
+            const adminCheck = await isAdmin();
+            if (adminCheck) {
+                state.user = user;
+                // Load defaults
+                try {
+                    const defaultsResponse = await api.getDefaultSettings();
+                    state.defaults = defaultsResponse.defaults;
+                } catch (e) {
+                    console.error('Failed to load defaults:', e);
+                }
+                hideLoading();
+                renderApp();
+            } else {
+                // Not admin, sign out and show login page
+                await logout();
+                state.user = null;
+                hideLoading();
+                renderLoginPage();
+                toast.error('Access denied. Admin privileges required.');
             }
-            renderApp();
         } else {
+            state.user = null;
+            hideLoading();
             renderLoginPage();
         }
     });
@@ -143,17 +155,18 @@ async function handleLogin(e) {
     const errorDiv = document.getElementById('login-error');
 
     btn.disabled = true;
-    btn.textContent = 'Signing in...';
+    btn.textContent = 'Verifying credentials...';
     errorDiv.classList.add('hidden');
 
     const result = await loginWithEmail(email, password);
 
     if (!result.success) {
-        errorDiv.textContent = 'Incorrect details or not an admin user.';
+        errorDiv.textContent = result.error || 'Incorrect details or not an admin user.';
         errorDiv.classList.remove('hidden');
         btn.disabled = false;
         btn.textContent = 'Sign In';
     }
+    // If success, onAuthChange will handle the rest (checking admin role and rendering app)
 }
 
 // ============================================================================
