@@ -145,6 +145,16 @@ export async function adminBroadcastSettings(settings, reason = '') {
     });
 }
 
+/**
+ * Admin: Force sync settings to a specific user
+ * This triggers an immediate sync and saves all settings at once
+ */
+export async function adminForceSyncUserSettings(userId) {
+    return apiRequest(`/api/location-tracking-settings/admin/user/${userId}/force-sync`, {
+        method: 'POST'
+    });
+}
+
 // ============================================================================
 // HEALTH CHECK
 // ============================================================================
@@ -235,6 +245,7 @@ export default {
     adminUpdateUserSettings,
     adminGetAllSettings,
     adminBroadcastSettings,
+    adminForceSyncUserSettings,
     checkHealth,
     getUserProfile,
     getUserLocations,

@@ -80,15 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Checking admin role for user:', user.uid);
                 const profileResponse = await api.getUserProfile(user.uid);
                 console.log('Profile response:', profileResponse);
-                
-                // Try different possible response structures
-                const userRole = profileResponse?.data?.role || 
-                               profileResponse?.user?.role || 
-                               profileResponse?.profile?.role || 
-                               profileResponse?.role || 
-                               null;
+
+                // Backend returns: { success: true, data: { ...profile, role: "admin" } }
+                const userRole = profileResponse?.data?.role || null;
                 console.log('User role:', userRole);
-                
+
                 if (userRole === 'admin') {
                     console.log('✅ Admin access granted');
                     state.user = user;
@@ -104,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // Not admin, sign out and show login page
                     console.log('❌ Access denied - User role:', userRole);
-                    console.log('Full response:', JSON.stringify(profileResponse, null, 2));
                     await logout();
                     state.user = null;
                     hideLoading();
@@ -113,13 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error checking admin role:', error);
-                console.error('Error details:', error.message, error.stack);
                 // If can't verify role, sign out
                 await logout();
                 state.user = null;
                 hideLoading();
                 renderLoginPage();
-                toast.error('Unable to verify admin access. Please check console for details.');
+                toast.error('Unable to verify admin access.');
             }
         } else {
             state.user = null;
@@ -484,6 +478,9 @@ function renderUserPanel(userId, data) {
                 <div class="user-panel-actions">
                     <button class="btn btn-primary" onclick="saveUserSettings('${escapeHtml(userId)}')">
                         ${icons.save} Save Changes
+                    </button>
+                    <button class="btn btn-success" onclick="forceSyncUser('${escapeHtml(userId)}')">
+                        ${icons.broadcast} Sync Now
                     </button>
                     <button class="btn btn-secondary" onclick="refreshUser('${escapeHtml(userId)}')">
                         ${icons.refresh} Refresh
@@ -1620,6 +1617,38 @@ async function refreshUser(userId) {
         toast.error(`Failed to refresh: ${error.message}`);
     }
 }
+
+/**
+ * Force sync user settings - triggers immediate sync to app
+ * This saves all current settings and notifies the app to sync
+ */
+async function forceSyncUser(userId) {
+    try {
+        // First save current settings
+        const panel = document.querySelector(`[data-user-id="${userId}"]`);
+        if (panel) {
+            const inputs = panel.querySelectorAll('.setting-input');
+            const settings = {};
+            inputs.forEach(input => {
+                const key = input.dataset.settingKey;
+                settings[key] = parseInt(input.value, 10);
+            });
+
+            // Update settings in backend (which writes to Firestore)
+            await api.adminUpdateUserSettings(userId, settings);
+        }
+
+        // Force sync - triggers version bump and immediate notification
+        await api.adminForceSyncUserSettings(userId);
+
+        toast.success('Settings synced! App will update within seconds via realtime listener.');
+        refreshUser(userId);
+    } catch (error) {
+        toast.error(`Failed to sync: ${error.message}`);
+    }
+}
+
+window.forceSyncUser = forceSyncUser;
 
 async function refreshAllUsers() {
     const userIds = Array.from(state.loadedUsers.keys());
