@@ -419,10 +419,11 @@ function renderUserPanel(userId, data) {
                 <div>
                     <span class="user-panel-id">${escapeHtml(userId)}</span>
                     ${data.error ? `<span class="badge badge-danger ml-2">Error</span>` : ''}
+                    ${settings.isDefault ? `<span class="badge badge-warning ml-2">Using Defaults</span>` : ''}
                 </div>
                 <div class="user-panel-status">
-                    <span class="badge ${settings.trackingEnabled ? 'badge-success' : 'badge-danger'}">
-                        ${settings.trackingEnabled ? 'Tracking ON' : 'Tracking OFF'}
+                    <span class="badge ${settings.trackingEnabled !== false ? 'badge-success' : 'badge-danger'}">
+                        ${settings.trackingEnabled !== false ? 'Tracking ON' : 'Tracking OFF'}
                     </span>
                     <span class="badge badge-primary">${activeMode}</span>
                     ${effectiveInterval ? `<span class="badge badge-info">${formatDuration(effectiveInterval)}</span>` : ''}
@@ -440,38 +441,19 @@ function renderUserPanel(userId, data) {
                 </div>
             ` : `
                 <div class="user-panel-body">
-                    <!-- Mode Cards -->
+                    <!-- Mode Toggle Cards -->
                     <h4 class="mb-2">Tracking Modes</h4>
-                    <div class="mode-cards">
-                        ${renderModeCard(userId, 'Normal', 'normal', settings.trackingEnabled && !settings.forceCheckEnabled && !settings.realtimeModeEnabled && !settings.emergencyModeEnabled, settings.updateInterval)}
-                        ${renderModeCard(userId, 'Force Check', 'force', settings.forceCheckEnabled, settings.forceCheckInterval, settings.forceCheckExpiresAt)}
-                        ${renderModeCard(userId, 'Realtime', 'realtime', settings.realtimeModeEnabled, settings.realtimeInterval, settings.realtimeModeExpiresAt)}
-                        ${renderModeCard(userId, 'Emergency', 'emergency', settings.emergencyModeEnabled, settings.emergencyInterval, settings.emergencyModeExpiresAt)}
+                    <div class="mode-toggle-grid">
+                        ${renderModeToggle(userId, 'Normal Tracking', 'normal', true, settings.updateInterval || 3600, 'Default tracking mode (1 hour interval)')}
+                        ${renderModeToggle(userId, 'Force Check', 'force', settings.forceCheckEnabled, settings.forceCheckInterval || 300, 'Override with 5 minute checks', settings.forceCheckExpiresAt)}
+                        ${renderModeToggle(userId, 'Realtime', 'realtime', settings.realtimeModeEnabled, settings.realtimeInterval || 10, 'Real-time 10 second updates', settings.realtimeModeExpiresAt)}
+                        ${renderModeToggle(userId, 'Emergency', 'emergency', settings.emergencyModeEnabled, settings.emergencyInterval || 30, 'Emergency 30 second tracking', settings.emergencyModeExpiresAt)}
                     </div>
 
-                    <!-- Interval Settings -->
-                    <h4 class="mb-2 mt-4">Interval Settings</h4>
-                    <div class="settings-grid">
-                        ${renderSettingInput(userId, 'updateInterval', 'Normal Update Interval', settings.updateInterval, 'seconds', 'Interval between location updates in normal mode')}
-                        ${renderSettingInput(userId, 'forceCheckInterval', 'Force Check Interval', settings.forceCheckInterval, 'seconds', 'Interval when force check mode is enabled')}
-                        ${renderSettingInput(userId, 'realtimeInterval', 'Realtime Interval', settings.realtimeInterval, 'seconds', 'Interval for realtime tracking mode')}
-                        ${renderSettingInput(userId, 'emergencyInterval', 'Emergency Interval', settings.emergencyInterval, 'seconds', 'Interval for emergency mode')}
-                    </div>
-
-                    <!-- Auto-Reset Durations -->
-                    <h4 class="mb-2 mt-4">Auto-Reset Durations</h4>
-                    <div class="settings-grid">
-                        ${renderSettingInput(userId, 'forceCheckDuration', 'Force Check Duration', settings.forceCheckDuration, 'seconds', 'How long force check mode stays active before auto-reset')}
-                        ${renderSettingInput(userId, 'realtimeModeDuration', 'Realtime Mode Duration', settings.realtimeModeDuration, 'seconds', 'How long realtime mode stays active before auto-reset')}
-                        ${renderSettingInput(userId, 'emergencyModeDuration', 'Emergency Mode Duration', settings.emergencyModeDuration, 'seconds', 'How long emergency mode stays active before auto-reset')}
-                    </div>
-
-                    <!-- Thresholds -->
-                    <h4 class="mb-2 mt-4">Thresholds & Accuracy</h4>
-                    <div class="settings-grid">
-                        ${renderSettingInput(userId, 'batteryThreshold', 'Battery Threshold', settings.batteryThreshold, '%', 'Minimum battery level for tracking')}
-                        ${renderSettingInput(userId, 'movementThreshold', 'Movement Threshold', settings.movementThreshold, 'meters', 'Minimum distance for location change')}
-                        ${renderSettingInput(userId, 'batchUploadSize', 'Batch Upload Size', settings.batchUploadSize, 'locations', 'Number of locations per batch upload')}
+                    <!-- Normal Interval Only -->
+                    <h4 class="mb-2 mt-4">Normal Tracking Interval</h4>
+                    <div class="settings-grid single-setting">
+                        ${renderSettingInput(userId, 'updateInterval', 'Update Interval', settings.updateInterval || 3600, 'seconds', 'Interval between location updates in normal mode')}
                     </div>
                 </div>
 
@@ -494,46 +476,44 @@ function renderUserPanel(userId, data) {
     `;
 }
 
-function renderModeCard(userId, name, mode, isActive, interval, expiresAt = null) {
+function renderModeToggle(userId, name, mode, isActive, interval, description, expiresAt = null) {
     const timeRemaining = expiresAt ? getTimeRemaining(expiresAt) : null;
+    const isNormal = mode === 'normal';
 
     return `
-        <div class="mode-card ${isActive ? 'active' : ''}">
-            <div class="mode-card-header">
-                <div class="mode-card-title">
+        <div class="mode-toggle-card ${isActive ? 'active' : ''}" data-mode="${mode}">
+            <div class="mode-toggle-header">
+                <div class="mode-toggle-info">
                     <div class="mode-icon ${mode}">
                         ${mode === 'normal' ? icons.location : mode === 'force' ? icons.clock : mode === 'realtime' ? icons.zap : icons.alert}
                     </div>
-                    <span class="mode-card-name">${name}</span>
+                    <div class="mode-toggle-text">
+                        <span class="mode-toggle-name">${name}</span>
+                        <span class="mode-toggle-desc">${description}</span>
+                    </div>
                 </div>
-                ${isActive ? `<span class="badge badge-success">Active</span>` : ''}
+                ${!isNormal ? `
+                    <label class="toggle-switch-large ${isActive ? 'on' : 'off'}">
+                        <input type="checkbox"
+                               ${isActive ? 'checked' : ''}
+                               onchange="toggleMode('${escapeHtml(userId)}', '${mode}', this.checked, ${interval})">
+                        <span class="toggle-slider-large"></span>
+                    </label>
+                ` : `
+                    <span class="badge badge-info">Default</span>
+                `}
             </div>
-            <div class="mode-card-body">
-                <div class="mode-detail">
-                    <span class="mode-detail-label">Interval</span>
-                    <span class="mode-detail-value">${formatDuration(interval || 0)}</span>
+            <div class="mode-toggle-details">
+                <div class="mode-detail-row">
+                    <span class="mode-detail-label">Interval:</span>
+                    <span class="mode-detail-value">${formatDuration(interval)}</span>
                 </div>
                 ${timeRemaining && isActive ? `
-                    <div class="mode-detail">
-                        <span class="mode-detail-label">Time Remaining</span>
+                    <div class="mode-detail-row">
+                        <span class="mode-detail-label">Auto-off in:</span>
                         <span class="mode-detail-value text-warning">${timeRemaining}</span>
                     </div>
                 ` : ''}
-            </div>
-            <div class="mode-card-actions">
-                ${mode !== 'normal' ? `
-                    ${isActive ? `
-                        <button class="btn btn-sm btn-danger btn-block" onclick="disableMode('${escapeHtml(userId)}', '${mode}')">
-                            ${icons.x} Disable
-                        </button>
-                    ` : `
-                        <button class="btn btn-sm btn-success btn-block" onclick="enableMode('${escapeHtml(userId)}', '${mode}')">
-                            ${icons.check} Enable
-                        </button>
-                    `}
-                ` : `
-                    <span class="text-muted" style="font-size: 0.85rem;">Default mode when others are disabled</span>
-                `}
             </div>
         </div>
     `;
@@ -1594,7 +1574,8 @@ async function loadUsers() {
 
         try {
             const response = await api.adminGetUserSettings(userId);
-            state.loadedUsers.set(userId, { settings: response.settings });
+            // Backend returns { success: true, data: { ...settings } }
+            state.loadedUsers.set(userId, { settings: response.data || response.settings });
         } catch (error) {
             state.loadedUsers.set(userId, { error: error.message });
         }
@@ -1610,7 +1591,8 @@ async function loadUsers() {
 async function refreshUser(userId) {
     try {
         const response = await api.adminGetUserSettings(userId);
-        state.loadedUsers.set(userId, { settings: response.settings });
+        // Backend returns { success: true, data: { ...settings } }
+        state.loadedUsers.set(userId, { settings: response.data || response.settings });
         document.getElementById('users-container').innerHTML = renderLoadedUsers();
         toast.success('Settings refreshed');
     } catch (error) {
@@ -1655,7 +1637,7 @@ async function refreshAllUsers() {
     for (const userId of userIds) {
         try {
             const response = await api.adminGetUserSettings(userId);
-            state.loadedUsers.set(userId, { settings: response.settings });
+            state.loadedUsers.set(userId, { settings: response.data || response.settings });
         } catch (error) {
             state.loadedUsers.set(userId, { error: error.message });
         }
@@ -1751,6 +1733,137 @@ window.disableMode = async function(userId, mode) {
         refreshUser(userId);
     } catch (error) {
         toast.error(`Failed to disable mode: ${error.message}`);
+    }
+};
+
+// Toggle mode function for the new toggle switches
+window.toggleMode = async function(userId, mode, isEnabled, defaultInterval) {
+    if (!isEnabled) {
+        // Turning OFF - just disable
+        try {
+            const modeSettings = {};
+            if (mode === 'force') modeSettings.forceCheckEnabled = false;
+            else if (mode === 'realtime') modeSettings.realtimeModeEnabled = false;
+            else if (mode === 'emergency') modeSettings.emergencyModeEnabled = false;
+
+            await api.adminUpdateUserSettings(userId, modeSettings);
+            toast.success(`${getModeDisplayName(mode)} disabled`);
+            refreshUser(userId);
+        } catch (error) {
+            toast.error(`Failed to disable: ${error.message}`);
+            refreshUser(userId); // Refresh to reset toggle state
+        }
+    } else {
+        // Turning ON - show interval selection popup
+        showIntervalPopup(userId, mode, defaultInterval);
+    }
+};
+
+function getModeDisplayName(mode) {
+    const names = {
+        'force': 'Force Check',
+        'realtime': 'Realtime',
+        'emergency': 'Emergency'
+    };
+    return names[mode] || mode;
+}
+
+function showIntervalPopup(userId, mode, defaultInterval) {
+    // Create popup HTML
+    const popupHTML = `
+        <div id="interval-popup" class="modal-overlay">
+            <div class="modal-content interval-popup-content">
+                <h3 class="modal-title">Set ${getModeDisplayName(mode)} Interval</h3>
+                <p class="modal-subtitle">Choose how often to track location when this mode is active</p>
+
+                <div class="interval-options">
+                    ${mode === 'force' ? `
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 60)">1 minute</button>
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 120)">2 minutes</button>
+                        <button class="interval-option selected" onclick="selectInterval('${userId}', '${mode}', 300)">5 minutes</button>
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 600)">10 minutes</button>
+                    ` : mode === 'realtime' ? `
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 5)">5 seconds</button>
+                        <button class="interval-option selected" onclick="selectInterval('${userId}', '${mode}', 10)">10 seconds</button>
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 15)">15 seconds</button>
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 30)">30 seconds</button>
+                    ` : `
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 10)">10 seconds</button>
+                        <button class="interval-option selected" onclick="selectInterval('${userId}', '${mode}', 30)">30 seconds</button>
+                        <button class="interval-option" onclick="selectInterval('${userId}', '${mode}', 60)">1 minute</button>
+                    `}
+                </div>
+
+                <div class="custom-interval-row">
+                    <label>Custom:</label>
+                    <input type="number" id="custom-interval-input" class="form-input" value="${defaultInterval}" min="1" placeholder="seconds">
+                    <span>seconds</span>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="cancelIntervalPopup('${userId}')">Cancel</button>
+                    <button class="btn btn-success" onclick="confirmInterval('${userId}', '${mode}')">Enable ${getModeDisplayName(mode)}</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing popup if any
+    const existingPopup = document.getElementById('interval-popup');
+    if (existingPopup) existingPopup.remove();
+
+    // Add popup to body
+    document.body.insertAdjacentHTML('beforeend', popupHTML);
+}
+
+window.selectInterval = function(userId, mode, seconds) {
+    // Update custom input
+    document.getElementById('custom-interval-input').value = seconds;
+
+    // Update selected state
+    document.querySelectorAll('.interval-option').forEach(btn => btn.classList.remove('selected'));
+    event.target.classList.add('selected');
+};
+
+window.cancelIntervalPopup = function(userId) {
+    const popup = document.getElementById('interval-popup');
+    if (popup) popup.remove();
+
+    // Refresh to reset toggle state
+    refreshUser(userId);
+};
+
+window.confirmInterval = async function(userId, mode) {
+    const interval = parseInt(document.getElementById('custom-interval-input').value, 10);
+
+    if (isNaN(interval) || interval < 1) {
+        toast.error('Please enter a valid interval');
+        return;
+    }
+
+    // Close popup
+    const popup = document.getElementById('interval-popup');
+    if (popup) popup.remove();
+
+    try {
+        const modeSettings = {};
+        if (mode === 'force') {
+            modeSettings.forceCheckEnabled = true;
+            modeSettings.forceCheckInterval = interval;
+        } else if (mode === 'realtime') {
+            modeSettings.realtimeModeEnabled = true;
+            modeSettings.realtimeInterval = interval;
+        } else if (mode === 'emergency') {
+            modeSettings.emergencyModeEnabled = true;
+            modeSettings.emergencyInterval = interval;
+        }
+
+        await api.adminUpdateUserSettings(userId, modeSettings);
+        toast.success(`${getModeDisplayName(mode)} enabled with ${formatDuration(interval)} interval`);
+        refreshUser(userId);
+    } catch (error) {
+        toast.error(`Failed to enable: ${error.message}`);
+        refreshUser(userId);
     }
 };
 
